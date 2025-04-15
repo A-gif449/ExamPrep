@@ -1,0 +1,2843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExamPrep - Q&A Platform for Competitive Exams</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+    <style>
+        /* Dark Blue Theme */
+        :root {
+            --primary-color: #1a73e8;
+            --secondary-color: #0d47a1;
+            --dark-color: #0a192f;
+            --light-color: #f8f9fa;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --text-color: #e6f1ff;
+            --text-muted: #8892b0;
+            --card-bg: #112240;
+            --body-bg: #0a192f;
+            --header-bg: #020c1b;
+            --footer-bg: #020c1b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: var(--body-bg);
+            color: var(--text-color);
+            overflow-x: hidden;
+        }
+
+        /* Floating Animations */
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+
+        @keyframes floatReverse {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(-5deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes bubble {
+            0% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-10px) scale(1.1); }
+            100% { transform: translateY(0) scale(1); }
+        }
+
+        .floating {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .floating-reverse {
+            animation: floatReverse 7s ease-in-out infinite;
+        }
+
+        .pulse {
+            animation: pulse 3s infinite;
+        }
+
+        .bubble {
+            animation: bubble 4s ease-in-out infinite;
+        }
+
+        /* Auth Modal */
+        .auth-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .auth-container {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+            transform: translateY(-50px);
+            opacity: 0;
+            transition: all 0.4s ease;
+            border: 1px solid rgba(100, 149, 237, 0.2);
+        }
+
+        .auth-container.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .auth-header h2 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 1.8rem;
+        }
+
+        .auth-header p {
+            color: var(--text-muted);
+        }
+
+        .auth-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(100, 149, 237, 0.2);
+        }
+
+        .auth-tab {
+            padding: 0.8rem 2rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-bottom: -1px;
+        }
+
+        .auth-tab.active {
+            border-bottom: 3px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.6rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 0.9rem;
+            background-color: rgba(10, 25, 47, 0.5);
+            border: 1px solid rgba(100, 149, 237, 0.3);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            color: var(--text-color);
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+            outline: none;
+            background-color: rgba(10, 25, 47, 0.8);
+        }
+
+        .auth-btn {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 1rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+        }
+
+        .auth-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(26, 115, 232, 0.4);
+        }
+
+        .close-auth {
+            position: absolute;
+            top: 1.2rem;
+            right: 1.2rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.3s;
+        }
+
+        .close-auth:hover {
+            color: var(--primary-color);
+            transform: rotate(90deg);
+        }
+
+        /* Header */
+        header {
+            background-color: var(--header-bg);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid rgba(100, 149, 237, 0.1);
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        .logo img {
+            height: 40px;
+            margin-right: 0.8rem;
+        }
+
+        .logo h1 {
+            color: var(--primary-color);
+            font-size: 1.6rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1a73e8, #34a853);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-links a {
+            margin-left: 1.8rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.3s;
+            font-weight: 500;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary-color);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background-color: var(--primary-color);
+            transition: width 0.3s;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 1rem;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+            border: 2px solid rgba(100, 149, 237, 0.5);
+        }
+
+        .user-avatar:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(26, 115, 232, 0.5);
+        }
+
+        .user-menu {
+            position: absolute;
+            top: 60px;
+            right: 0;
+            background-color: var(--card-bg);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 0.8rem 0;
+            width: 220px;
+            display: none;
+            z-index: 10;
+            border: 1px solid rgba(100, 149, 237, 0.2);
+            overflow: hidden;
+        }
+
+        .user-menu.show {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-menu-item {
+            padding: 0.8rem 1.2rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+        }
+
+        .user-menu-item i {
+            margin-right: 0.8rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        .user-menu-item:hover {
+            background-color: rgba(26, 115, 232, 0.1);
+            color: var(--primary-color);
+            padding-left: 1.5rem;
+        }
+
+        .user-coins {
+            background: linear-gradient(135deg, #ffd700, #ffbf00);
+            color: #8a6d3b;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-left: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .user-coins i {
+            margin-right: 0.3rem;
+        }
+
+        .auth-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        /* Main Content */
+        .main {
+            max-width: 1200px;
+            margin: 6rem auto 2rem;
+            padding: 0 2rem;
+        }
+
+        /* Hero Section */
+        .hero {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 4rem 0;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(26, 115, 232, 0.1) 0%, rgba(10, 25, 47, 0) 70%);
+            z-index: -1;
+        }
+
+        .hero h2 {
+            font-size: 3rem;
+            color: var(--text-color);
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+            line-height: 1.2;
+            max-width: 800px;
+            background: linear-gradient(135deg, #ffffff, #a8c0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            max-width: 700px;
+            margin-bottom: 2.5rem;
+            line-height: 1.6;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn i {
+            margin-right: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(26, 115, 232, 0.4);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.1);
+        }
+
+        .btn-outline:hover {
+            background-color: rgba(26, 115, 232, 0.1);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(26, 115, 232, 0.2);
+        }
+
+        /* Exam Categories */
+        .exam-categories {
+            margin-bottom: 4rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            color: var(--text-color);
+            margin-bottom: 2rem;
+            position: relative;
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 2px;
+        }
+
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .category-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: all 0.4s;
+            cursor: pointer;
+            text-align: center;
+            border: 1px solid rgba(100, 149, 237, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .category-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .category-icon {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .category-card:hover .category-icon {
+            transform: scale(1.1);
+            color: #a8c0ff;
+        }
+
+        .category-card h3 {
+            color: var(--text-color);
+            margin-bottom: 1rem;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+
+        .category-card p {
+            color: var(--text-muted);
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        /* Questions Section */
+        .questions-section {
+            margin-bottom: 4rem;
+        }
+
+        .questions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .ask-question-btn {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+        }
+
+        .ask-question-btn i {
+            margin-right: 0.5rem;
+        }
+
+        .ask-question-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(26, 115, 232, 0.4);
+        }
+
+        .questions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .question-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s;
+            border: 1px solid rgba(100, 149, 237, 0.2);
+        }
+
+        .question-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            align-items: center;
+        }
+
+        .question-user {
+            display: flex;
+            align-items: center;
+        }
+
+        .question-user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.8rem;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .question-user-name {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .question-date {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .question-content h3 {
+            color: var(--text-color);
+            margin-bottom: 1rem;
+            cursor: pointer;
+            font-size: 1.3rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .question-content h3:hover {
+            color: var(--primary-color);
+        }
+
+        .question-content p {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .question-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .tag {
+            background-color: rgba(26, 115, 232, 0.1);
+            color: var(--primary-color);
+            padding: 0.4rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            border: 1px solid rgba(26, 115, 232, 0.3);
+        }
+
+        .tag:hover {
+            background-color: rgba(26, 115, 232, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .question-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(100, 149, 237, 0.1);
+            padding-top: 1.5rem;
+        }
+
+        .answer-count {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .answer-count i {
+            margin-right: 0.5rem;
+            color: var(--primary-color);
+        }
+
+        .answer-btn {
+            background-color: transparent;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+            padding: 0.5rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+        }
+
+        .answer-btn i {
+            margin-right: 0.5rem;
+        }
+
+        .answer-btn:hover {
+            background-color: rgba(26, 115, 232, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.1);
+        }
+
+        /* Subscription Plans */
+        .subscription-plans {
+            background-color: var(--card-bg);
+            padding: 4rem 0;
+            margin-bottom: 4rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(100, 149, 237, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .subscription-plans::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .plans-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .plans-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .plans-header p {
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 1rem auto 0;
+            line-height: 1.6;
+        }
+
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .plan-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 2.5rem 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: all 0.4s;
+            text-align: center;
+            border: 1px solid rgba(100, 149, 237, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .plan-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .plan-card.popular {
+            border: 2px solid var(--primary-color);
+            transform: scale(1.05);
+            z-index: 1;
+        }
+
+        .plan-card.popular::after {
+            content: 'Most Popular';
+            position: absolute;
+            top: 15px;
+            right: -30px;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.3rem 2rem;
+            font-size: 0.8rem;
+            font-weight: bold;
+            transform: rotate(45deg);
+        }
+
+        .plan-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .plan-name {
+            font-size: 1.5rem;
+            color: var(--text-color);
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+
+        .plan-price {
+            font-size: 2.8rem;
+            color: var(--text-color);
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+            position: relative;
+            display: inline-block;
+        }
+
+        .plan-price::before {
+            content: '₹';
+            font-size: 1.5rem;
+            position: absolute;
+            left: -1rem;
+            top: 0.5rem;
+        }
+
+        .plan-price span {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: normal;
+            display: block;
+            margin-top: 0.5rem;
+        }
+
+        .plan-features {
+            list-style: none;
+            margin-bottom: 2.5rem;
+            text-align: left;
+        }
+
+        .plan-features li {
+            padding: 0.8rem 0;
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(100, 149, 237, 0.1);
+            display: flex;
+            align-items: center;
+        }
+
+        .plan-features li:last-child {
+            border-bottom: none;
+        }
+
+        .plan-features li i {
+            color: var(--primary-color);
+            margin-right: 0.8rem;
+            font-size: 1.1rem;
+        }
+
+        .plan-btn {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .plan-btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+        }
+
+        .plan-btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(26, 115, 232, 0.4);
+        }
+
+        /* Question Modal */
+        .question-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .question-container {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 700px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid rgba(100, 149, 237, 0.2);
+        }
+
+        .close-question {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.3s;
+        }
+
+        .close-question:hover {
+            color: var(--primary-color);
+            transform: rotate(90deg);
+        }
+
+        .question-form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .question-form textarea {
+            width: 100%;
+            padding: 1rem;
+            background-color: rgba(10, 25, 47, 0.5);
+            border: 1px solid rgba(100, 149, 237, 0.3);
+            border-radius: 8px;
+            font-size: 1rem;
+            min-height: 150px;
+            margin-bottom: 1.5rem;
+            resize: vertical;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .question-form textarea:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+            outline: none;
+            background-color: rgba(10, 25, 47, 0.8);
+        }
+
+        .question-submit {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .question-submit i {
+            margin-right: 0.5rem;
+        }
+
+        .question-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(26, 115, 232, 0.4);
+        }
+
+        /* Answer Modal */
+        .answer-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .answer-container {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 700px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid rgba(100, 149, 237, 0.2);
+        }
+
+        .close-answer {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.3s;
+        }
+
+        .close-answer:hover {
+            color: var(--primary-color);
+            transform: rotate(90deg);
+        }
+
+        .answer-form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .answer-form textarea {
+            width: 100%;
+            padding: 1rem;
+            background-color: rgba(10, 25, 47, 0.5);
+            border: 1px solid rgba(100, 149, 237, 0.3);
+            border-radius: 8px;
+            font-size: 1rem;
+            min-height: 200px;
+            margin-bottom: 1.5rem;
+            resize: vertical;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .answer-form textarea:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+            outline: none;
+            background-color: rgba(10, 25, 47, 0.8);
+        }
+
+        .answer-submit {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .answer-submit i {
+            margin-right: 0.5rem;
+        }
+
+        .answer-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(26, 115, 232, 0.4);
+        }
+
+        /* Profile Modal */
+        .profile-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .profile-container {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 800px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid rgba(100, 149, 237, 0.2);
+        }
+
+        .close-profile {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.3s;
+        }
+
+        .close-profile:hover {
+            color: var(--primary-color);
+            transform: rotate(90deg);
+        }
+
+        .profile-content {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .profile-picture-section {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .profile-picture-container {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid var(--primary-color);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s;
+        }
+
+        .profile-picture-container:hover {
+            transform: scale(1.05);
+        }
+
+        .profile-picture-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-picture-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+        }
+
+        .profile-picture-container:hover .profile-picture-overlay {
+            opacity: 1;
+        }
+
+        .profile-picture-overlay i {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .profile-form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .profile-form textarea {
+            width: 100%;
+            padding: 1rem;
+            background-color: rgba(10, 25, 47, 0.5);
+            border: 1px solid rgba(100, 149, 237, 0.3);
+            border-radius: 8px;
+            font-size: 1rem;
+            resize: vertical;
+            color: var(--text-color);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .profile-stats {
+            display: flex;
+            justify-content: space-around;
+            background-color: rgba(10, 25, 47, 0.5);
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(100, 149, 237, 0.2);
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 0 1rem;
+            position: relative;
+        }
+
+        .stat-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1px;
+            height: 40px;
+            background-color: rgba(100, 149, 237, 0.2);
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 0.3rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .profile-save-btn {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+            margin-top: 1rem;
+        }
+
+        .profile-save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(26, 115, 232, 0.4);
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: var(--success-color);
+            color: white;
+            padding: 1.2rem 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            z-index: 1000;
+            transform: translateX(150%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-width: 350px;
+            border-left: 5px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification i {
+            margin-right: 0.8rem;
+            font-size: 1.5rem;
+        }
+
+        .notification.error {
+            background-color: var(--danger-color);
+        }
+
+        .notification.warning {
+            background-color: var(--warning-color);
+            color: #212529;
+        }
+
+        .notification.info {
+            background-color: var(--primary-color);
+        }
+
+        /* Floating Elements */
+        .floating-element {
+            position: absolute;
+            border-radius: 50%;
+            z-index: -1;
+            opacity: 0.1;
+            filter: blur(1px);
+        }
+
+        .floating-element-1 {
+            top: 20%;
+            left: 5%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, var(--primary-color), transparent 70%);
+            animation: float 8s ease-in-out infinite;
+        }
+
+        .floating-element-2 {
+            top: 60%;
+            right: 10%;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, #34a853, transparent 70%);
+            animation: floatReverse 9s ease-in-out infinite;
+        }
+
+        .floating-element-3 {
+            bottom: 10%;
+            left: 15%;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, #ea4335, transparent 70%);
+            animation: float 7s ease-in-out infinite reverse;
+        }
+
+        .floating-element-4 {
+            top: 80%;
+            right: 20%;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #fbbc05, transparent 70%);
+            animation: bubble 6s ease-in-out infinite;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--footer-bg);
+            color: white;
+            padding: 4rem 2rem 2rem;
+            text-align: center;
+            border-top: 1px solid rgba(100, 149, 237, 0.1);
+            position: relative;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 3rem;
+            text-align: left;
+        }
+
+        .footer-column h3 {
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            position: relative;
+            display: inline-block;
+        }
+
+        .footer-column h3::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 40px;
+            height: 3px;
+            background-color: var(--primary-color);
+            border-radius: 2px;
+        }
+
+        .footer-column ul {
+            list-style: none;
+        }
+
+        .footer-column ul li {
+            margin-bottom: 1rem;
+        }
+
+        .footer-column ul li a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+
+        .footer-column ul li a:hover {
+            color: var(--primary-color);
+            transform: translateX(5px);
+        }
+
+        .footer-column p {
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 1.2rem;
+            margin-top: 1.5rem;
+        }
+
+        .social-links a {
+            color: var(--text-muted);
+            font-size: 1.3rem;
+            transition: all 0.3s;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(100, 149, 237, 0.1);
+        }
+
+        .social-links a:hover {
+            color: white;
+            background-color: var(--primary-color);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(26, 115, 232, 0.3);
+        }
+
+        .footer-bottom {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .footer-bottom a {
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .footer-bottom a:hover {
+            text-decoration: underline;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: none;
+            width: 50px;
+            height: 50px;
+            margin: 0 auto;
+            border: 4px solid rgba(26, 115, 232, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid var(--primary-color);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .hero h2 {
+                font-size: 2.5rem;
+            }
+            
+            .plans-grid {
+                grid-template-columns: 1fr;
+                max-width: 500px;
+                margin: 0 auto;
+            }
+            
+            .plan-card.popular {
+                transform: scale(1);
+            }
+            
+            .plan-card.popular::after {
+                right: -25px;
+                padding: 0.3rem 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 1rem;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .main {
+                margin-top: 5rem;
+                padding: 0 1rem;
+            }
+            
+            .hero {
+                padding: 3rem 0;
+            }
+            
+            .hero h2 {
+                font-size: 2rem;
+            }
+            
+            .hero p {
+                font-size: 1.1rem;
+            }
+            
+            .cta-buttons {
+                flex-direction: column;
+                width: 100%;
+                gap: 1rem;
+            }
+            
+            .btn {
+                width: 100%;
+                text-align: center;
+            }
+            
+            .question-card, .category-card {
+                padding: 1.5rem;
+            }
+            
+            .profile-picture-container {
+                width: 150px;
+                height: 150px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .auth-buttons {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+            
+            .auth-tabs {
+                flex-direction: column;
+                border-bottom: none;
+            }
+            
+            .auth-tab {
+                border-bottom: none;
+                border-left: 3px solid transparent;
+                padding: 0.8rem 1rem;
+            }
+            
+            .auth-tab.active {
+                border-bottom: none;
+                border-left: 3px solid var(--primary-color);
+            }
+            
+            .question-container, .answer-container, .profile-container {
+                padding: 1.5rem;
+            }
+            
+            .footer-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating Background Elements -->
+    <div class="floating-element floating-element-1"></div>
+    <div class="floating-element floating-element-2"></div>
+    <div class="floating-element floating-element-3"></div>
+    <div class="floating-element floating-element-4"></div>
+
+    <!-- Auth Modal -->
+    <div class="auth-modal" id="authModal">
+        <div class="auth-container" id="authContainer">
+            <span class="close-auth" id="closeAuth">&times;</span>
+            <div class="auth-header">
+                <h2 id="authTitle">Welcome to ExamPrep</h2>
+                <p id="authSubtitle">Join our community of learners</p>
+            </div>
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="loginTab">Login</div>
+                <div class="auth-tab" id="signupTab">Sign Up</div>
+            </div>
+            <form class="auth-form" id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="auth-btn">Login</button>
+            </form>
+            <form class="auth-form" id="signupForm" style="display: none;">
+                <div class="form-group">
+                    <label for="signupName">Full Name</label>
+                    <input type="text" id="signupName" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupEmail">Email</label>
+                    <input type="email" id="signupEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Password</label>
+                    <input type="password" id="signupPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupConfirmPassword">Confirm Password</label>
+                    <input type="password" id="signupConfirmPassword" required>
+                </div>
+                <button type="submit" class="auth-btn">Sign Up</button>
+            </form>
+            <div class="spinner" id="authSpinner"></div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="navbar">
+            <a href="#" class="logo">
+                <img src="https://via.placeholder.com/40" alt="ExamPrep Logo">
+                <h1>ExamPrep</h1>
+            </a>
+            <div class="nav-links" id="navLinks">
+                <a href="#home">Home</a>
+                <a href="#exams">Exams</a>
+                <a href="#questions">Questions</a>
+                <a href="#plans">Plans</a>
+                <a href="#about">About</a>
+            </div>
+            <div class="user-profile" id="userProfile" style="display: none;">
+                <span id="userName">User</span>
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-menu" id="userMenu">
+                    <div class="user-menu-item" id="profileBtn">
+                        <i class="fas fa-user"></i> My Profile
+                    </div>
+                    <div class="user-menu-item" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </div>
+                </div>
+            </div>
+            <div class="auth-buttons" id="authButtons">
+                <button class="btn btn-outline" id="loginBtn">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+                <button class="btn btn-primary" id="signupBtn">
+                    <i class="fas fa-user-plus"></i> Sign Up
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Hero Section -->
+        <section class="hero" id="home">
+            <h2>Prepare for your exams with our community</h2>
+            <p>Ask questions, get answers, and collaborate with thousands of students preparing for GATE, UPSC, UGC-NET, BARC, ISRO and other competitive exams.</p>
+            <div class="cta-buttons">
+                <button class="btn btn-primary" id="heroAskBtn">
+                    <i class="fas fa-question-circle"></i> Ask a Question
+                </button>
+                <button class="btn btn-outline" id="heroBrowseBtn">
+                    <i class="fas fa-search"></i> Browse Questions
+                </button>
+            </div>
+        </section>
+
+        <!-- Exam Categories -->
+        <section class="exam-categories" id="exams">
+            <h2 class="section-title">Popular Exam Categories</h2>
+            <div class="categories-grid">
+                <div class="category-card floating">
+                    <div class="category-icon">
+                        <i class="fas fa-laptop-code"></i>
+                    </div>
+                    <h3>GATE (Computer Science)</h3>
+                    <p>Master computer science concepts for GATE exam</p>
+                </div>
+                <div class="category-card floating-reverse">
+                    <div class="category-icon">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <h3>GATE (Mechanical)</h3>
+                    <p>Engineering mechanics, thermodynamics and more</p>
+                </div>
+                <div class="category-card floating">
+                    <div class="category-icon">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <h3>GATE (Civil)</h3>
+                    <p>Structural engineering, geotechnical and more</p>
+                </div>
+                <div class="category-card floating-reverse">
+                    <div class="category-icon">
+                        <i class="fas fa-landmark"></i>
+                    </div>
+                    <h3>UPSC Civil Services</h3>
+                    <p>Prepare for India's most prestigious exam</p>
+                </div>
+                <div class="category-card floating">
+                    <div class="category-icon">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    <h3>UGC-NET</h3>
+                    <p>For aspiring professors and researchers</p>
+                </div>
+                <div class="category-card floating-reverse">
+                    <div class="category-icon">
+                        <i class="fas fa-rocket"></i>
+                    </div>
+                    <h3>ISRO/BARC</h3>
+                    <p>Space and nuclear research exams</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Questions Section -->
+        <section class="questions-section" id="questions">
+            <div class="questions-header">
+                <h2 class="section-title">Recent Questions</h2>
+                <button class="ask-question-btn" id="askQuestionBtn">
+                    <i class="fas fa-plus"></i> Ask Question
+                </button>
+            </div>
+            <div class="questions-list" id="questionsList">
+                <!-- Questions will be loaded here dynamically -->
+                <div class="spinner" id="questionsSpinner"></div>
+            </div>
+        </section>
+
+        <!-- Subscription Plans -->
+        <section class="subscription-plans" id="plans">
+            <div class="plans-container">
+                <div class="plans-header">
+                    <h2 class="section-title">Upgrade Your Experience</h2>
+                    <p>Choose a plan that works best for you and get access to premium features</p>
+                </div>
+                <div class="plans-grid">
+                    <div class="plan-card">
+                        <div class="plan-name">Basic</div>
+                        <div class="plan-price">20 <span>per month</span></div>
+                        <ul class="plan-features">
+                            <li><i class="fas fa-check"></i> 50 Coins</li>
+                            <li><i class="fas fa-check"></i> Basic Support</li>
+                            <li><i class="fas fa-check"></i> Ad-supported</li>
+                            <li><i class="fas fa-times"></i> Priority Answers</li>
+                            <li><i class="fas fa-times"></i> Exclusive Content</li>
+                        </ul>
+                        <button class="plan-btn plan-btn-primary" id="basicPlanBtn">Get Started</button>
+                    </div>
+                    <div class="plan-card popular">
+                        <div class="plan-name">Standard</div>
+                        <div class="plan-price">59 <span>per month</span></div>
+                        <ul class="plan-features">
+                            <li><i class="fas fa-check"></i> 120 Coins</li>
+                            <li><i class="fas fa-check"></i> Priority Support</li>
+                            <li><i class="fas fa-check"></i> Reduced Ads</li>
+                            <li><i class="fas fa-check"></i> Early Access to Features</li>
+                            <li><i class="fas fa-times"></i> Exclusive Content</li>
+                        </ul>
+                        <button class="plan-btn plan-btn-primary" id="standardPlanBtn">Get Started</button>
+                    </div>
+                    <div class="plan-card">
+                        <div class="plan-name">Premium</div>
+                        <div class="plan-price">149 <span>per month</span></div>
+                        <ul class="plan-features">
+                            <li><i class="fas fa-check"></i> Unlimited Postings</li>
+                            <li><i class="fas fa-check"></i> 24/7 Priority Support</li>
+                            <li><i class="fas fa-check"></i> Ad-free Experience</li>
+                            <li><i class="fas fa-check"></i> Exclusive Content</li>
+                            <li><i class="fas fa-check"></i> Early Access to Features</li>
+                        </ul>
+                        <button class="plan-btn plan-btn-primary" id="premiumPlanBtn">Get Started</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Question Modal -->
+    <div class="question-modal" id="questionModal">
+        <div class="question-container">
+            <span class="close-question" id="closeQuestion">&times;</span>
+            <h2>Ask a Question</h2>
+            <form class="question-form" id="questionForm">
+                <div class="form-group">
+                    <label for="questionTitle">Question Title</label>
+                    <input type="text" id="questionTitle" placeholder="Be specific and imagine you're asking a question to another person" required>
+                </div>
+                <div class="form-group">
+                    <label for="questionBody">Details</label>
+                    <textarea id="questionBody" placeholder="Include all the information someone would need to answer your question" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="questionTags">Tags</label>
+                    <input type="text" id="questionTags" placeholder="Add tags like gate-cs, upsc, mathematics etc." required>
+                </div>
+                <div class="form-group">
+                    <label for="questionExam">Exam Category</label>
+                    <select id="questionExam" required>
+                        <option value="">Select exam category</option>
+                        <option value="gate-cs">GATE (Computer Science)</option>
+                        <option value="gate-me">GATE (Mechanical)</option>
+                        <option value="gate-ce">GATE (Civil)</option>
+                        <option value="upsc">UPSC Civil Services</option>
+                        <option value="ugc-net">UGC-NET</option>
+                        <option value="isro">ISRO</option>
+                        <option value="barc">BARC</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <button type="submit" class="question-submit" id="questionSubmit">
+                    <i class="fas fa-coins"></i> Post Question (1 coin)
+                </button>
+            </form>
+            <div class="spinner" id="questionSpinner"></div>
+        </div>
+    </div>
+
+    <!-- Answer Modal -->
+    <div class="answer-modal" id="answerModal">
+        <div class="answer-container">
+            <span class="close-answer" id="closeAnswer">&times;</span>
+            <h2 id="answerModalTitle">Answer Question</h2>
+            <form class="answer-form" id="answerForm">
+                <div class="form-group">
+                    <textarea id="answerBody" placeholder="Write your answer here..." required></textarea>
+                </div>
+                <button type="submit" class="answer-submit" id="answerSubmit">
+                    <i class="fas fa-paper-plane"></i> Post Answer
+                </button>
+            </form>
+            <div class="spinner" id="answerSpinner"></div>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div class="profile-modal" id="profileModal">
+        <div class="profile-container">
+            <span class="close-profile" id="closeProfile">&times;</span>
+            <h2>My Profile</h2>
+            <div class="profile-content">
+                <div class="profile-picture-section">
+                    <div class="profile-picture-container">
+                        <img src="https://via.placeholder.com/150" alt="Profile Picture" id="profilePicture">
+                        <div class="profile-picture-overlay" id="uploadDPBtn">
+                            <i class="fas fa-camera"></i>
+                            <span>Change Photo</span>
+                        </div>
+                    </div>
+                    <input type="file" id="profilePictureInput" accept="image/*" style="display: none;">
+                </div>
+                <form class="profile-form" id="profileForm">
+                    <div class="form-group">
+                        <label for="profileName">Full Name</label>
+                        <input type="text" id="profileName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="profileEmail">Email</label>
+                        <input type="email" id="profileEmail" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="profileBio">Bio</label>
+                        <textarea id="profileBio" rows="3" placeholder="Tell us about yourself"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="profileExam">Primary Exam</label>
+                        <select id="profileExam">
+                            <option value="">Select your primary exam</option>
+                            <option value="gate-cs">GATE (Computer Science)</option>
+                            <option value="gate-me">GATE (Mechanical)</option>
+                            <option value="gate-ce">GATE (Civil)</option>
+                            <option value="upsc">UPSC Civil Services</option>
+                            <option value="ugc-net">UGC-NET</option>
+                            <option value="isro">ISRO</option>
+                            <option value="barc">BARC</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Account Stats</label>
+                        <div class="profile-stats">
+                            <div class="stat-item">
+                                <span class="stat-value" id="statCoins">0</span>
+                                <span class="stat-label">Coins</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value" id="statQuestions">0</span>
+                                <span class="stat-label">Questions</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value" id="statAnswers">0</span>
+                                <span class="stat-label">Answers</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="profile-save-btn">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification">
+        <i class="fas fa-check-circle"></i>
+        <span id="notificationText">Success! Your action was completed.</span>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-column">
+                <h3>ExamPrep</h3>
+                <p>Your one-stop platform for exam preparation. Collaborate with thousands of students and experts to ace your exams.</p>
+                <div class="social-links">
+                    <a href="#"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-instagram"></i></a>
+                    <a href="#"><i class="fab fa-linkedin-in"></i></a>
+                </div>
+            </div>
+            <div class="footer-column">
+                <h3>Quick Links</h3>
+                <ul>
+                    <li><a href="#home">Home</a></li>
+                    <li><a href="#exams">Exam Categories</a></li>
+                    <li><a href="#questions">Questions</a></li>
+                    <li><a href="#plans">Subscription Plans</a></li>
+                    <li><a href="#">About Us</a></li>
+                </ul>
+            </div>
+            <div class="footer-column">
+                <h3>Popular Exams</h3>
+                <ul>
+                    <li><a href="#">GATE (Computer Science)</a></li>
+                    <li><a href="#">GATE (Mechanical)</a></li>
+                    <li><a href="#">GATE (Civil)</a></li>
+                    <li><a href="#">UPSC Civil Services</a></li>
+                    <li><a href="#">UGC-NET</a></li>
+                </ul>
+            </div>
+            <div class="footer-column">
+                <h3>Contact Us</h3>
+                <ul>
+                    <li><i class="fas fa-envelope"></i> support@examprep.com</li>
+                    <li><i class="fas fa-phone"></i> +91 9876543210</li>
+                    <li><i class="fas fa-map-marker-alt"></i> 123 Education Street, Learning City, India</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2023 ExamPrep. All rights reserved. | <a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a></p>
+        </div>
+    </footer>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+        apiKey: "AIzaSyD4GCGteBOQDbL2EaeySDYasXBujGsIiuU",
+        authDomain: "examprep-d9584.firebaseapp.com",
+        projectId: "examprep-d9584",
+        storageBucket: "examprep-d9584.firebasestorage.app",
+        messagingSenderId: "217391099936",
+        appId: "1:217391099936:web:30d274920be2caa54d8c45"
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // DOM Elements
+        const authModal = document.getElementById('authModal');
+        const authContainer = document.getElementById('authContainer');
+        const closeAuth = document.getElementById('closeAuth');
+        const loginTab = document.getElementById('loginTab');
+        const signupTab = document.getElementById('signupTab');
+        const loginForm = document.getElementById('loginForm');
+        const signupForm = document.getElementById('signupForm');
+        const authTitle = document.getElementById('authTitle');
+        const authSubtitle = document.getElementById('authSubtitle');
+        const authSpinner = document.getElementById('authSpinner');
+        const loginBtn = document.getElementById('loginBtn');
+        const signupBtn = document.getElementById('signupBtn');
+        const userProfile = document.getElementById('userProfile');
+        const authButtons = document.getElementById('authButtons');
+        const userName = document.getElementById('userName');
+        const userAvatar = document.getElementById('userAvatar');
+        const userMenu = document.getElementById('userMenu');
+        const profileBtn = document.getElementById('profileBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const questionModal = document.getElementById('questionModal');
+        const closeQuestion = document.getElementById('closeQuestion');
+        const questionForm = document.getElementById('questionForm');
+        const questionSpinner = document.getElementById('questionSpinner');
+        const askQuestionBtn = document.getElementById('askQuestionBtn');
+        const heroAskBtn = document.getElementById('heroAskBtn');
+        const answerModal = document.getElementById('answerModal');
+        const closeAnswer = document.getElementById('closeAnswer');
+        const answerForm = document.getElementById('answerForm');
+        const answerSpinner = document.getElementById('answerSpinner');
+        const answerModalTitle = document.getElementById('answerModalTitle');
+        const questionsList = document.getElementById('questionsList');
+        const questionsSpinner = document.getElementById('questionsSpinner');
+        const notification = document.getElementById('notification');
+        const notificationText = document.getElementById('notificationText');
+        const basicPlanBtn = document.getElementById('basicPlanBtn');
+        const standardPlanBtn = document.getElementById('standardPlanBtn');
+        const premiumPlanBtn = document.getElementById('premiumPlanBtn');
+        const profileModal = document.getElementById('profileModal');
+        const closeProfile = document.getElementById('closeProfile');
+        const profileForm = document.getElementById('profileForm');
+        const profileName = document.getElementById('profileName');
+        const profileEmail = document.getElementById('profileEmail');
+        const profileBio = document.getElementById('profileBio');
+        const profileExam = document.getElementById('profileExam');
+        const profilePicture = document.getElementById('profilePicture');
+        const uploadDPBtn = document.getElementById('uploadDPBtn');
+        const profilePictureInput = document.getElementById('profilePictureInput');
+        const statCoins = document.getElementById('statCoins');
+        const statQuestions = document.getElementById('statQuestions');
+        const statAnswers = document.getElementById('statAnswers');
+
+        // Current question being answered
+        let currentQuestionId = null;
+
+        // Razorpay API Key (replace with your actual key)
+        const razorpayKey = 'rzp_test_RAgRZTbpfPLJwM';
+
+        // Event Listeners
+        loginBtn.addEventListener('click', () => {
+            showAuthModal('login');
+        });
+
+        signupBtn.addEventListener('click', () => {
+            showAuthModal('signup');
+        });
+
+        closeAuth.addEventListener('click', () => {
+            hideAuthModal();
+        });
+
+        loginTab.addEventListener('click', () => {
+            switchAuthTab('login');
+        });
+
+        signupTab.addEventListener('click', () => {
+            switchAuthTab('signup');
+        });
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            handleLogin();
+        });
+
+        signupForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            handleSignup();
+        });
+
+        userAvatar.addEventListener('click', () => {
+            userMenu.classList.toggle('show');
+        });
+
+        profileBtn.addEventListener('click', () => {
+            showProfileModal();
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            handleLogout();
+            userMenu.classList.remove('show');
+        });
+
+        askQuestionBtn.addEventListener('click', () => {
+            showQuestionModal();
+        });
+
+        heroAskBtn.addEventListener('click', () => {
+            showQuestionModal();
+        });
+
+        closeQuestion.addEventListener('click', () => {
+            hideQuestionModal();
+        });
+
+        questionForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            handleQuestionSubmit();
+        });
+
+        closeAnswer.addEventListener('click', () => {
+            hideAnswerModal();
+        });
+
+        answerForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            handleAnswerSubmit();
+        });
+
+        basicPlanBtn.addEventListener('click', () => {
+            initiatePayment(20, 'Basic Plan - 50 Coins');
+        });
+
+        standardPlanBtn.addEventListener('click', () => {
+            initiatePayment(59, 'Standard Plan - 120 Coins');
+        });
+
+        premiumPlanBtn.addEventListener('click', () => {
+            initiatePayment(149, 'Premium Plan - Unlimited Postings');
+        });
+
+        closeProfile.addEventListener('click', () => {
+            hideProfileModal();
+        });
+
+        uploadDPBtn.addEventListener('click', () => {
+            profilePictureInput.click();
+        });
+
+        profilePictureInput.addEventListener('change', (e) => {
+            handleProfilePictureUpload(e.target.files[0]);
+        });
+
+        profileForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveProfile();
+        });
+
+        // Auth Modal Functions
+        function showAuthModal(type) {
+            authModal.style.display = 'flex';
+            setTimeout(() => {
+                authContainer.classList.add('show');
+            }, 10);
+            
+            if (type === 'login') {
+                switchAuthTab('login');
+            } else {
+                switchAuthTab('signup');
+            }
+        }
+
+        function hideAuthModal() {
+            authContainer.classList.remove('show');
+            setTimeout(() => {
+                authModal.style.display = 'none';
+            }, 300);
+        }
+
+        function switchAuthTab(type) {
+            if (type === 'login') {
+                loginTab.classList.add('active');
+                signupTab.classList.remove('active');
+                loginForm.style.display = 'flex';
+                signupForm.style.display = 'none';
+                authTitle.textContent = 'Welcome Back to ExamPrep';
+                authSubtitle.textContent = 'Login to continue your learning journey';
+            } else {
+                loginTab.classList.remove('active');
+                signupTab.classList.add('active');
+                loginForm.style.display = 'none';
+                signupForm.style.display = 'flex';
+                authTitle.textContent = 'Join ExamPrep Community';
+                authSubtitle.textContent = 'Sign up to get started';
+            }
+        }
+
+        // Auth Functions
+        function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            authSpinner.style.display = 'block';
+            
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // Signed in
+                    const user = userCredential.user;
+                    showNotification('Login successful!', 'success');
+                    hideAuthModal();
+                    updateUI(user);
+                    loadQuestions();
+                })
+                .catch((error) => {
+                    const errorMessage = error.message;
+                    showNotification(errorMessage, 'error');
+                })
+                .finally(() => {
+                    authSpinner.style.display = 'none';
+                });
+        }
+
+        function handleSignup() {
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const confirmPassword = document.getElementById('signupConfirmPassword').value;
+            
+            if (password !== confirmPassword) {
+                showNotification('Passwords do not match', 'error');
+                return;
+            }
+            
+            authSpinner.style.display = 'block';
+            
+            auth.createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // Signed up
+                    const user = userCredential.user;
+                    
+                    // Create user document in Firestore
+                    return db.collection('users').doc(user.uid).set({
+                        name: name,
+                        email: email,
+                        coins: 500, // Initial 500 coins
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        subscription: 'free',
+                        profilePicture: ''
+                    });
+                })
+                .then(() => {
+                    showNotification('Account created successfully!', 'success');
+                    hideAuthModal();
+                    updateUI(auth.currentUser);
+                    loadQuestions();
+                })
+                .catch((error) => {
+                    const errorMessage = error.message;
+                    showNotification(errorMessage, 'error');
+                })
+                .finally(() => {
+                    authSpinner.style.display = 'none';
+                });
+        }
+
+        function handleLogout() {
+            auth.signOut().then(() => {
+                showNotification('Logged out successfully', 'success');
+                updateUI(null);
+                questionsList.innerHTML = '<div class="spinner" id="questionsSpinner"></div>';
+            }).catch((error) => {
+                showNotification(error.message, 'error');
+            });
+        }
+
+        // Question Modal Functions
+        function showQuestionModal() {
+            if (!auth.currentUser) {
+                showNotification('Please login to ask a question', 'warning');
+                showAuthModal('login');
+                return;
+            }
+            
+            questionModal.style.display = 'flex';
+            setTimeout(() => {
+                questionModal.querySelector('.question-container').classList.add('show');
+            }, 10);
+        }
+
+        function hideQuestionModal() {
+            questionModal.querySelector('.question-container').classList.remove('show');
+            setTimeout(() => {
+                questionModal.style.display = 'none';
+                questionForm.reset();
+            }, 300);
+        }
+
+        function handleQuestionSubmit() {
+            const title = document.getElementById('questionTitle').value;
+            const body = document.getElementById('questionBody').value;
+            const tags = document.getElementById('questionTags').value.split(',').map(tag => tag.trim());
+            const exam = document.getElementById('questionExam').value;
+            const user = auth.currentUser;
+            
+            if (!title || !body || !exam) {
+                showNotification('Please fill all required fields', 'warning');
+                return;
+            }
+            
+            questionSpinner.style.display = 'block';
+            
+            // First check user's coin balance
+            db.collection('users').doc(user.uid).get()
+                .then((doc) => {
+                    if (doc.exists) {
+                        const userData = doc.data();
+                        if (userData.coins < 1) {
+                            throw new Error('Not enough coins to post a question. Please purchase more coins.');
+                        }
+                        
+                        // Deduct 1 coin for posting a question
+                        return db.collection('users').doc(user.uid).update({
+                            coins: firebase.firestore.FieldValue.increment(-1)
+                        });
+                    } else {
+                        throw new Error('User data not found');
+                    }
+                })
+                .then(() => {
+                    // Now create the question
+                    return db.collection('questions').add({
+                        title: title,
+                        body: body,
+                        tags: tags,
+                        exam: exam,
+                        userId: user.uid,
+                        userName: user.displayName || user.email.split('@')[0],
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        answers: [],
+                        upvotes: 0,
+                        status: 'open'
+                    });
+                })
+                .then(() => {
+                    showNotification('Question posted successfully! (1 coin deducted)', 'success');
+                    hideQuestionModal();
+                    loadQuestions();
+                })
+                .catch((error) => {
+                    showNotification(error.message, 'error');
+                })
+                .finally(() => {
+                    questionSpinner.style.display = 'none';
+                });
+        }
+
+        // Answer Modal Functions
+        function showAnswerModal(questionId, questionTitle) {
+            if (!auth.currentUser) {
+                showNotification('Please login to answer a question', 'warning');
+                showAuthModal('login');
+                return;
+            }
+            
+            currentQuestionId = questionId;
+            answerModalTitle.textContent = `Answer: ${questionTitle}`;
+            answerModal.style.display = 'flex';
+            setTimeout(() => {
+                answerModal.querySelector('.answer-container').classList.add('show');
+            }, 10);
+        }
+
+        function hideAnswerModal() {
+            answerModal.querySelector('.answer-container').classList.remove('show');
+            setTimeout(() => {
+                answerModal.style.display = 'none';
+                answerForm.reset();
+                currentQuestionId = null;
+            }, 300);
+        }
+
+        function handleAnswerSubmit() {
+            const body = document.getElementById('answerBody').value;
+            const user = auth.currentUser;
+            
+            if (!body) {
+                showNotification('Please write your answer', 'warning');
+                return;
+            }
+            
+            answerSpinner.style.display = 'block';
+            
+            // First add the answer to the question
+            db.collection('questions').doc(currentQuestionId).update({
+                answers: firebase.firestore.FieldValue.arrayUnion({
+                    body: body,
+                    userId: user.uid,
+                    userName: user.displayName || user.email.split('@')[0],
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    upvotes: 0,
+                    isAccepted: false
+                })
+            })
+            .then(() => {
+                // Reward the user with 2 coins for answering
+                return db.collection('users').doc(user.uid).update({
+                    coins: firebase.firestore.FieldValue.increment(2)
+                });
+            })
+            .then(() => {
+                showNotification('Answer posted successfully! You earned 2 coins', 'success');
+                hideAnswerModal();
+                loadQuestions();
+            })
+            .catch((error) => {
+                showNotification(error.message, 'error');
+            })
+            .finally(() => {
+                answerSpinner.style.display = 'none';
+            });
+        }
+
+        // Payment Functions
+        function initiatePayment(amount, description) {
+            if (!auth.currentUser) {
+                showNotification('Please login to purchase a plan', 'warning');
+                showAuthModal('login');
+                return;
+            }
+            
+            // Create a payment document in Firestore first
+            const paymentRef = db.collection('payments').doc();
+            const paymentData = {
+                userId: auth.currentUser.uid,
+                amount: amount,
+                description: description,
+                status: 'pending',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            paymentRef.set(paymentData)
+                .then(() => {
+                    // In a real app, you would create an order on your server
+                    // For demo, we'll simulate it client-side
+                    const options = {
+                        key: razorpayKey,
+                        amount: amount * 100, // Razorpay expects amount in paise
+                        currency: 'INR',
+                        name: 'ExamPrep',
+                        description: description,
+                        image: 'https://via.placeholder.com/150',
+                        handler: function(response) {
+                            handlePaymentSuccess(response, amount, description, paymentRef.id);
+                        },
+                        prefill: {
+                            name: auth.currentUser.displayName || '',
+                            email: auth.currentUser.email || ''
+                        },
+                        theme: {
+                            color: '#1a73e8'
+                        }
+                    };
+                    
+                    const rzp = new Razorpay(options);
+                    rzp.open();
+                })
+                .catch((error) => {
+                    showNotification('Failed to initiate payment: ' + error.message, 'error');
+                });
+        }
+
+        function handlePaymentSuccess(response, amount, description, paymentId) {
+            const user = auth.currentUser;
+            let coinsToAdd = 0;
+            let subscriptionType = 'free';
+            
+            if (amount === 20) {
+                coinsToAdd = 50;
+                subscriptionType = 'basic';
+            } else if (amount === 59) {
+                coinsToAdd = 120;
+                subscriptionType = 'standard';
+            } else if (amount === 149) {
+                coinsToAdd = 9999; // Essentially unlimited
+                subscriptionType = 'premium';
+            }
+            
+            const batch = db.batch();
+            
+            // Update payment status
+            const paymentRef = db.collection('payments').doc(paymentId);
+            batch.update(paymentRef, {
+                status: 'completed',
+                razorpayPaymentId: response.razorpay_payment_id,
+                completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            // Update user's coins and subscription
+            const userRef = db.collection('users').doc(user.uid);
+            batch.update(userRef, {
+                coins: firebase.firestore.FieldValue.increment(coinsToAdd),
+                subscription: subscriptionType,
+                lastPayment: {
+                    amount: amount,
+                    description: description,
+                    date: firebase.firestore.FieldValue.serverTimestamp(),
+                    razorpayPaymentId: response.razorpay_payment_id
+                }
+            });
+            
+            batch.commit()
+                .then(() => {
+                    showNotification(`Payment successful! ${coinsToAdd} coins added to your account`, 'success');
+                    updateUI(user);
+                })
+                .catch((error) => {
+                    showNotification(`Payment succeeded but failed to update coins: ${error.message}`, 'error');
+                });
+        }
+
+        // Profile Modal Functions
+        function showProfileModal() {
+            if (!auth.currentUser) {
+                showNotification('Please login to view profile', 'warning');
+                showAuthModal('login');
+                return;
+            }
+            
+            // Load user data
+            db.collection('users').doc(auth.currentUser.uid).get()
+                .then((doc) => {
+                    if (doc.exists) {
+                        const userData = doc.data();
+                        profileName.value = userData.name || '';
+                        profileEmail.value = auth.currentUser.email;
+                        profileBio.value = userData.bio || '';
+                        profileExam.value = userData.primaryExam || '';
+                        statCoins.textContent = userData.coins || 0;
+                        
+                        // Load profile picture if exists
+                        if (userData.profilePicture) {
+                            profilePicture.src = userData.profilePicture;
+                        } else {
+                            profilePicture.src = 'https://via.placeholder.com/150';
+                        }
+                        
+                        // Count questions and answers
+                        countUserPosts(auth.currentUser.uid);
+                    }
+                });
+            
+            profileModal.style.display = 'flex';
+            setTimeout(() => {
+                profileModal.querySelector('.profile-container').classList.add('show');
+            }, 10);
+            userMenu.classList.remove('show');
+        }
+
+        function hideProfileModal() {
+            profileModal.querySelector('.profile-container').classList.remove('show');
+            setTimeout(() => {
+                profileModal.style.display = 'none';
+            }, 300);
+        }
+
+        function handleProfilePictureUpload(file) {
+            if (!file) return;
+            
+            if (!file.type.match('image.*')) {
+                showNotification('Please select an image file', 'error');
+                return;
+            }
+            
+            if (file.size > 2 * 1024 * 1024) {
+                showNotification('Image size should be less than 2MB', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                profilePicture.src = e.target.result;
+                saveProfilePicture(file);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function saveProfilePicture(file) {
+            const user = auth.currentUser;
+            const storageRef = storage.ref(`profile_pictures/${user.uid}`);
+            const uploadTask = storageRef.put(file);
+            
+            uploadTask.on('state_changed',
+                (snapshot) => {
+                    // Progress monitoring can be added here
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    console.log('Upload is ' + progress + '% done');
+                },
+                (error) => {
+                    showNotification('Failed to upload profile picture: ' + error.message, 'error');
+                },
+                () => {
+                    uploadTask.snapshot.ref.getDownloadURL().then((downloadURL) => {
+                        db.collection('users').doc(user.uid).update({
+                            profilePicture: downloadURL
+                        })
+                        .then(() => {
+                            showNotification('Profile picture updated successfully!', 'success');
+                            updateUI(user);
+                        })
+                        .catch((error) => {
+                            showNotification('Failed to save profile picture URL: ' + error.message, 'error');
+                        });
+                    });
+                }
+            );
+        }
+
+        function saveProfile() {
+            const user = auth.currentUser;
+            const updates = {
+                name: profileName.value,
+                bio: profileBio.value,
+                primaryExam: profileExam.value
+            };
+            
+            db.collection('users').doc(user.uid).update(updates)
+                .then(() => {
+                    showNotification('Profile updated successfully!', 'success');
+                    updateUI(user);
+                })
+                .catch((error) => {
+                    showNotification('Failed to update profile: ' + error.message, 'error');
+                });
+        }
+
+        function countUserPosts(userId) {
+            // Count questions
+            db.collection('questions').where('userId', '==', userId).get()
+                .then((querySnapshot) => {
+                    statQuestions.textContent = querySnapshot.size;
+                });
+            
+            // Count answers (this is simplified - in production you'd need a better way)
+            db.collection('questions').get()
+                .then((querySnapshot) => {
+                    let answerCount = 0;
+                    querySnapshot.forEach((doc) => {
+                        const question = doc.data();
+                        if (question.answers) {
+                            answerCount += question.answers.filter(a => a.userId === userId).length;
+                        }
+                    });
+                    statAnswers.textContent = answerCount;
+                });
+        }
+
+        // Question List Functions
+        function loadQuestions() {
+            questionsSpinner.style.display = 'block';
+            questionsList.innerHTML = '';
+            
+            db.collection('questions').orderBy('createdAt', 'desc').limit(10).get()
+                .then((querySnapshot) => {
+                    if (querySnapshot.empty) {
+                        questionsList.innerHTML = '<p>No questions found. Be the first to ask!</p>';
+                        return;
+                    }
+                    
+                    querySnapshot.forEach((doc) => {
+                        const question = doc.data();
+                        const questionId = doc.id;
+                        
+                        const questionCard = document.createElement('div');
+                        questionCard.className = 'question-card';
+                        questionCard.innerHTML = `
+                            <div class="question-header">
+                                <div class="question-user">
+                                    <div class="question-user-avatar">${question.userName.charAt(0).toUpperCase()}</div>
+                                    <span class="question-user-name">${question.userName}</span>
+                                </div>
+                                <div class="question-date">${formatDate(question.createdAt?.toDate())}</div>
+                            </div>
+                            <div class="question-content">
+                                <h3>${question.title}</h3>
+                                <p>${question.body}</p>
+                            </div>
+                            <div class="question-tags">
+                                ${question.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                                <span class="tag">${question.exam}</span>
+                            </div>
+                            <div class="question-actions">
+                                <div class="answer-count"><i class="fas fa-comment"></i> ${question.answers?.length || 0} answers</div>
+                                <button class="answer-btn" data-id="${questionId}"><i class="fas fa-pen"></i> Answer</button>
+                            </div>
+                        `;
+                        
+                        questionsList.appendChild(questionCard);
+                    });
+                    
+                    // Add event listeners to answer buttons
+                    document.querySelectorAll('.answer-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const questionId = e.target.getAttribute('data-id');
+                            const questionTitle = e.target.closest('.question-card').querySelector('.question-content h3').textContent;
+                            showAnswerModal(questionId, questionTitle);
+                        });
+                    });
+                })
+                .catch((error) => {
+                    questionsList.innerHTML = `<p>Error loading questions: ${error.message}</p>`;
+                })
+                .finally(() => {
+                    questionsSpinner.style.display = 'none';
+                });
+        }
+
+        // UI Functions
+        function updateUI(user) {
+            if (user) {
+                // User is logged in
+                authButtons.style.display = 'none';
+                userProfile.style.display = 'flex';
+                
+                // Get user data from Firestore
+                db.collection('users').doc(user.uid).get()
+                    .then((doc) => {
+                        if (doc.exists) {
+                            const userData = doc.data();
+                            userName.textContent = userData.name || user.email.split('@')[0];
+                            userAvatar.textContent = userName.textContent.charAt(0).toUpperCase();
+                            
+                            // Update coin display
+                            const coinDisplay = document.createElement('span');
+                            coinDisplay.className = 'user-coins';
+                            coinDisplay.innerHTML = `<i class="fas fa-coins"></i> ${userData.coins} coins`;
+                            
+                            // Remove existing coin display if it exists
+                            const existingCoinDisplay = userName.nextElementSibling;
+                            if (existingCoinDisplay && existingCoinDisplay.classList.contains('user-coins')) {
+                                userName.removeChild(existingCoinDisplay);
+                            }
+                            
+                            userName.appendChild(coinDisplay);
+                            
+                            // Update profile picture in header if available
+                            if (userData.profilePicture) {
+                                userAvatar.style.backgroundImage = `url(${userData.profilePicture})`;
+                                userAvatar.style.backgroundSize = 'cover';
+                                userAvatar.style.backgroundPosition = 'center';
+                                userAvatar.textContent = '';
+                            }
+                        }
+                    });
+            } else {
+                // User is logged out
+                authButtons.style.display = 'flex';
+                userProfile.style.display = 'none';
+            }
+        }
+
+        function showNotification(message, type = 'success') {
+            notificationText.textContent = message;
+            notification.className = 'notification';
+            notification.classList.add(type);
+            
+            // Set appropriate icon
+            const icon = notification.querySelector('i');
+            if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+            } else if (type === 'warning') {
+                icon.className = 'fas fa-exclamation-triangle';
+            } else if (type === 'info') {
+                icon.className = 'fas fa-info-circle';
+            } else {
+                icon.className = 'fas fa-check-circle';
+            }
+            
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 5000);
+        }
+
+        // Utility Functions
+        function formatDate(date) {
+            if (!date) return 'Just now';
+            
+            const now = new Date();
+            const diff = now - date;
+            const seconds = Math.floor(diff / 1000);
+            
+            if (seconds < 60) return 'Just now';
+            
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes} min ago`;
+            
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+            
+            const days = Math.floor(hours / 24);
+            if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+            
+            return date.toLocaleDateString();
+        }
+
+        // Initialize the app
+        function init() {
+            // Check auth state
+            auth.onAuthStateChanged((user) => {
+                updateUI(user);
+                if (user) {
+                    loadQuestions();
+                }
+            });
+            
+            // Load questions initially
+            loadQuestions();
+        }
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
