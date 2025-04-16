@@ -1506,6 +1506,69 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Admin Badge */
+        .admin-badge {
+            background-color: #fbbc05;
+            color: #202124;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-left: 0.5rem;
+            display: inline-block;
+        }
+
+        /* Answer Status */
+        .answer-status {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-left: 0.5rem;
+        }
+
+        .status-pending {
+            background-color: #ffc107;
+            color: #212529;
+        }
+
+        .status-accepted {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .status-rejected {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        /* Verify Button */
+        .verify-btn {
+            background-color: transparent;
+            color: #28a745;
+            border: 1px solid #28a745;
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-left: 0.5rem;
+        }
+
+        .verify-btn:hover {
+            background-color: rgba(40, 167, 69, 0.1);
+        }
+
+        .reject-btn {
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+
+        .reject-btn:hover {
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+
         /* Responsive */
         @media (max-width: 992px) {
             .hero h2 {
@@ -1997,25 +2060,32 @@
             </div>
         </div>
         <div class="footer-bottom">
-            <p>&copy; 2023 ExamPrep. All rights reserved. | <a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a></p>
+            <p>&copy; 2025 ExamPrep. All rights reserved. | <a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a></p>
         </div>
     </footer>
+    <!-- <form><script src="https://checkout.razorpay.com/v1/payment-button.js" data-payment_button_id="undefined" async> </script> </form> -->
+    <form><script src="https://checkout.razorpay.com/v1/payment-button.js" data-payment_button_id="pl_QJf40wQQUans7y" async> </script> </form>
 
     <script>
         // Firebase Configuration
         const firebaseConfig = {
-        apiKey: "AIzaSyD4GCGteBOQDbL2EaeySDYasXBujGsIiuU",
-        authDomain: "examprep-d9584.firebaseapp.com",
-        projectId: "examprep-d9584",
-        storageBucket: "examprep-d9584.firebasestorage.app",
-        messagingSenderId: "217391099936",
-        appId: "1:217391099936:web:30d274920be2caa54d8c45"
+            apiKey: "AIzaSyD4GCGteBOQDbL2EaeySDYasXBujGsIiuU",
+            authDomain: "examprep-d9584.firebaseapp.com",
+            projectId: "examprep-d9584",
+            storageBucket: "examprep-d9584.firebasestorage.app",
+            messagingSenderId: "217391099936",
+            appId: "1:217391099936:web:30d274920be2caa54d8c45"
         };
+
+        
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
         const storage = firebase.storage();
+
+        // Admin user emails (for demo purposes)
+        const ADMIN_USERS = ['basuabhishek748@gmail.com'];
 
         // DOM Elements
         const authModal = document.getElementById('authModal');
@@ -2071,6 +2141,7 @@
 
         // Current question being answered
         let currentQuestionId = null;
+        let isAdmin = false;
 
         // Razorpay API Key (replace with your actual key)
         const razorpayKey = 'rzp_test_RAgRZTbpfPLJwM';
@@ -2224,6 +2295,7 @@
                 .then((userCredential) => {
                     // Signed in
                     const user = userCredential.user;
+                    isAdmin = ADMIN_USERS.includes(user.email);
                     showNotification('Login successful!', 'success');
                     hideAuthModal();
                     updateUI(user);
@@ -2255,6 +2327,7 @@
                 .then((userCredential) => {
                     // Signed up
                     const user = userCredential.user;
+                    isAdmin = ADMIN_USERS.includes(user.email);
                     
                     // Create user document in Firestore
                     return db.collection('users').doc(user.uid).set({
@@ -2263,7 +2336,8 @@
                         coins: 500, // Initial 500 coins
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         subscription: 'free',
-                        profilePicture: ''
+                        profilePicture: '',
+                        isAdmin: isAdmin
                     });
                 })
                 .then(() => {
@@ -2283,6 +2357,7 @@
 
         function handleLogout() {
             auth.signOut().then(() => {
+                isAdmin = false;
                 showNotification('Logged out successfully', 'success');
                 updateUI(null);
                 questionsList.innerHTML = '<div class="spinner" id="questionsSpinner"></div>';
@@ -2408,25 +2483,23 @@
             
             answerSpinner.style.display = 'block';
             
+            // Create answer object
+            const answer = {
+                body: body,
+                userId: user.uid,
+                userName: user.displayName || user.email.split('@')[0],
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                upvotes: 0,
+                status: 'pending', // Answers need verification
+                isAccepted: false
+            };
+            
             // First add the answer to the question
             db.collection('questions').doc(currentQuestionId).update({
-                answers: firebase.firestore.FieldValue.arrayUnion({
-                    body: body,
-                    userId: user.uid,
-                    userName: user.displayName || user.email.split('@')[0],
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    upvotes: 0,
-                    isAccepted: false
-                })
+                answers: firebase.firestore.FieldValue.arrayUnion(answer)
             })
             .then(() => {
-                // Reward the user with 2 coins for answering
-                return db.collection('users').doc(user.uid).update({
-                    coins: firebase.firestore.FieldValue.increment(2)
-                });
-            })
-            .then(() => {
-                showNotification('Answer posted successfully! You earned 2 coins', 'success');
+                showNotification('Answer submitted successfully! It will be reviewed by our team.', 'success');
                 hideAnswerModal();
                 loadQuestions();
             })
@@ -2458,8 +2531,10 @@
             
             paymentRef.set(paymentData)
                 .then(() => {
-                    // In a real app, you would create an order on your server
-                    // For demo, we'll simulate it client-side
+                    // For demo purposes, we'll simulate server-side order creation
+                    // In a real app, you would call your backend to create an order
+                    const orderId = `order_${Date.now()}`;
+                    
                     const options = {
                         key: razorpayKey,
                         amount: amount * 100, // Razorpay expects amount in paise
@@ -2467,6 +2542,7 @@
                         name: 'ExamPrep',
                         description: description,
                         image: 'https://via.placeholder.com/150',
+                        order_id: orderId, // This would come from your server in a real app
                         handler: function(response) {
                             handlePaymentSuccess(response, amount, description, paymentRef.id);
                         },
@@ -2481,6 +2557,19 @@
                     
                     const rzp = new Razorpay(options);
                     rzp.open();
+                    
+                    // For demo, we'll simulate payment success after 2 seconds
+                    // In a real app, this would be handled by Razorpay's callback
+                    setTimeout(() => {
+                        // This is just for demo - in real app, Razorpay would call the handler
+                        if (confirm('Simulate successful payment for demo?')) {
+                            handlePaymentSuccess({
+                                razorpay_payment_id: `pay_${Date.now()}`,
+                                razorpay_order_id: orderId,
+                                razorpay_signature: `sig_${Date.now()}`
+                            }, amount, description, paymentRef.id);
+                        }
+                    }, 2000);
                 })
                 .catch((error) => {
                     showNotification('Failed to initiate payment: ' + error.message, 'error');
@@ -2510,6 +2599,8 @@
             batch.update(paymentRef, {
                 status: 'completed',
                 razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature,
                 completedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             
@@ -2695,6 +2786,7 @@
                                 <div class="question-user">
                                     <div class="question-user-avatar">${question.userName.charAt(0).toUpperCase()}</div>
                                     <span class="question-user-name">${question.userName}</span>
+                                    ${question.isAdmin ? '<span class="admin-badge">ADMIN</span>' : ''}
                                 </div>
                                 <div class="question-date">${formatDate(question.createdAt?.toDate())}</div>
                             </div>
@@ -2713,6 +2805,58 @@
                         `;
                         
                         questionsList.appendChild(questionCard);
+                        
+                        // If there are answers, render them
+                        if (question.answers && question.answers.length > 0) {
+                            const answersContainer = document.createElement('div');
+                            answersContainer.className = 'answers-container';
+                            answersContainer.style.marginTop = '1.5rem';
+                            
+                            question.answers.forEach((answer, index) => {
+                                const answerDiv = document.createElement('div');
+                                answerDiv.className = 'answer';
+                                answerDiv.style.padding = '1rem';
+                                answerDiv.style.marginBottom = '1rem';
+                                answerDiv.style.backgroundColor = 'rgba(10, 25, 47, 0.3)';
+                                answerDiv.style.borderRadius = '8px';
+                                answerDiv.style.borderLeft = '3px solid var(--primary-color)';
+                                
+                                let statusBadge = '';
+                                if (answer.status === 'pending') {
+                                    statusBadge = `<span class="answer-status status-pending">Pending Review</span>`;
+                                } else if (answer.status === 'accepted') {
+                                    statusBadge = `<span class="answer-status status-accepted">Verified</span>`;
+                                } else if (answer.status === 'rejected') {
+                                    statusBadge = `<span class="answer-status status-rejected">Rejected</span>`;
+                                }
+                                
+                                answerDiv.innerHTML = `
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                        <div style="display: flex; align-items: center;">
+                                            <div class="question-user-avatar" style="margin-right: 0.5rem;">${answer.userName.charAt(0).toUpperCase()}</div>
+                                            <span class="question-user-name">${answer.userName}</span>
+                                            ${statusBadge}
+                                        </div>
+                                        <div class="question-date">${formatDate(answer.createdAt?.toDate())}</div>
+                                    </div>
+                                    <p style="margin-bottom: 0.5rem;">${answer.body}</p>
+                                    ${isAdmin && answer.status === 'pending' ? `
+                                        <div style="display: flex; justify-content: flex-end;">
+                                            <button class="verify-btn" data-question="${questionId}" data-answer="${index}">
+                                                <i class="fas fa-check"></i> Verify
+                                            </button>
+                                            <button class="verify-btn reject-btn" data-question="${questionId}" data-answer="${index}">
+                                                <i class="fas fa-times"></i> Reject
+                                            </button>
+                                        </div>
+                                    ` : ''}
+                                `;
+                                
+                                answersContainer.appendChild(answerDiv);
+                            });
+                            
+                            questionCard.appendChild(answersContainer);
+                        }
                     });
                     
                     // Add event listeners to answer buttons
@@ -2723,12 +2867,68 @@
                             showAnswerModal(questionId, questionTitle);
                         });
                     });
+                    
+                    // Add event listeners to verify/reject buttons (for admins)
+                    if (isAdmin) {
+                        document.querySelectorAll('.verify-btn').forEach(btn => {
+                            btn.addEventListener('click', (e) => {
+                                const questionId = e.target.getAttribute('data-question');
+                                const answerIndex = e.target.getAttribute('data-answer');
+                                const isVerify = e.target.classList.contains('reject-btn') ? false : true;
+                                verifyAnswer(questionId, answerIndex, isVerify);
+                            });
+                        });
+                    }
                 })
                 .catch((error) => {
                     questionsList.innerHTML = `<p>Error loading questions: ${error.message}</p>`;
                 })
                 .finally(() => {
                     questionsSpinner.style.display = 'none';
+                });
+        }
+
+        // Verify Answer Function (for admins)
+        function verifyAnswer(questionId, answerIndex, isCorrect) {
+            // First get the question
+            db.collection('questions').doc(questionId).get()
+                .then((doc) => {
+                    if (!doc.exists) {
+                        throw new Error('Question not found');
+                    }
+                    
+                    const question = doc.data();
+                    const answers = question.answers;
+                    
+                    if (!answers || answerIndex >= answers.length) {
+                        throw new Error('Answer not found');
+                    }
+                    
+                    const answer = answers[answerIndex];
+                    const answerUserId = answer.userId;
+                    
+                    // Update the answer status
+                    answers[answerIndex].status = isCorrect ? 'accepted' : 'rejected';
+                    answers[answerIndex].isAccepted = isCorrect;
+                    
+                    // Update the question with the modified answers array
+                    return db.collection('questions').doc(questionId).update({
+                        answers: answers
+                    }).then(() => {
+                        // If answer is correct, reward the user with coins
+                        if (isCorrect) {
+                            return db.collection('users').doc(answerUserId).update({
+                                coins: firebase.firestore.FieldValue.increment(2)
+                            });
+                        }
+                    });
+                })
+                .then(() => {
+                    showNotification(`Answer ${isCorrect ? 'verified' : 'rejected'} successfully${isCorrect ? ' (user awarded 2 coins)' : ''}`, 'success');
+                    loadQuestions();
+                })
+                .catch((error) => {
+                    showNotification('Failed to verify answer: ' + error.message, 'error');
                 });
         }
 
@@ -2826,9 +3026,18 @@
         function init() {
             // Check auth state
             auth.onAuthStateChanged((user) => {
-                updateUI(user);
                 if (user) {
-                    loadQuestions();
+                    // Check if user is admin
+                    db.collection('users').doc(user.uid).get()
+                        .then((doc) => {
+                            if (doc.exists) {
+                                isAdmin = doc.data().isAdmin || false;
+                            }
+                            updateUI(user);
+                            loadQuestions();
+                        });
+                } else {
+                    updateUI(null);
                 }
             });
             
