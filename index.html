@@ -2216,16 +2216,16 @@
             handleAnswerSubmit();
         });
 
-        basicPlanBtn.addEventListener('click', () => {
-            initiatePayment(20, 'Basic Plan - 50 Coins');
+       basicPlanBtn.addEventListener('click', async () => {
+            await initiatePayment(20, 'Basic Plan - 50 Coins');
         });
 
-        standardPlanBtn.addEventListener('click', () => {
-            initiatePayment(59, 'Standard Plan - 120 Coins');
+        standardPlanBtn.addEventListener('click', async () => {
+            await initiatePayment(59, 'Standard Plan - 120 Coins');
         });
 
-        premiumPlanBtn.addEventListener('click', () => {
-            initiatePayment(149, 'Premium Plan - Unlimited Postings');
+        premiumPlanBtn.addEventListener('click', async () => {
+            await initiatePayment(149, 'Premium Plan - Unlimited Postings');
         });
 
         closeProfile.addEventListener('click', () => {
@@ -2511,70 +2511,161 @@
             });
         }
 
-        // Payment Functions
-        function initiatePayment(amount, description) {
-            if (!auth.currentUser) {
-                showNotification('Please login to purchase a plan', 'warning');
-                showAuthModal('login');
-                return;
-            }
-            
-            // Create a payment document in Firestore first
+      // Payment Functions
+        async function initiatePayment(amount, description) {
+        if (!auth.currentUser) {
+            showNotification('Please login to purchase a plan', 'warning');
+            showAuthModal('login');
+            return;
+        }
+
+        try {
+            // 1. First create a payment record in your Firestore
             const paymentRef = db.collection('payments').doc();
             const paymentData = {
-                userId: auth.currentUser.uid,
+            userId: auth.currentUser.uid,
+            amount: amount,
+            description: description,
+            status: 'pending',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        await paymentRef.set(paymentData);
+
+        // 2. Call your backend to create a Razorpay order
+        const response = await fetch('YOUR_BACKEND_ENDPOINT/create-order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${await auth.currentUser.getIdToken()}`
+            },
+            body: JSON.stringify({
+                amount: amount * 100, // Convert to paise
+                currency: 'INR',
+                receipt: paymentRef.id,
+                notes: {
+                    userId: auth.currentUser.uid,
+                    description: description
+                }
+            })
+        });
+
+        const orderData = await response.json();
+
+        if (!orderData.id) {
+            throw new Error('Failed to create order');
+        }
+
+        // 3. Open Razorpay checkout
+        const options = {
+            key: razorpayKey,
+            amount: orderData.amount,
+            currency: orderData.currency,
+            name: "ExamPrep",
+            description: description,
+            order_id: orderData.id,
+            handler: async function(response) {
+                await handlePaymentSuccess(response, amount, description, paymentRef.id);
+            },
+            prefill: {
+                name: auth.currentUser.displayName || '',
+                email: auth.currentUser.email || '',
+                contact: '' // Add if you collect phone numbers
+            },
+            theme: {
+                color: "#1a73e8"
+            },
+            modal: {
+                ondismiss: function() {
+                    showNotification('Payment cancelled', 'warning');
+                }
+            }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.open();
+
+        } catch (error) {
+            console.error('Payment error:', error);
+            showNotification('Failed to initiate payment: ' + error.message, 'error');
+        }
+    }
+
+    async function handlePaymentSuccess(response, amount, description, paymentId) {
+        try {
+            // 1. Verify payment with your backend
+            const verificationResponse = await fetch('YOUR_BACKEND_ENDPOINT/verify-payment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${await auth.currentUser.getIdToken()}`
+            },
+            body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                amount: amount,
+                description: description
+            })
+        });
+
+        const verificationData = await verificationResponse.json();
+
+        if (!verificationData.success) {
+            throw new Error('Payment verification failed');
+        }
+
+        // 2. Update payment status and user coins
+        const user = auth.currentUser;
+        let coinsToAdd = 0;
+        let subscriptionType = 'free';
+        
+        if (amount === 20) {
+            coinsToAdd = 50;
+            subscriptionType = 'basic';
+        } else if (amount === 59) {
+            coinsToAdd = 120;
+            subscriptionType = 'standard';
+        } else if (amount === 149) {
+            coinsToAdd = 9999;
+            subscriptionType = 'premium';
+        }
+
+        const batch = db.batch();
+        
+        // Update payment record
+        const paymentRef = db.collection('payments').doc(paymentId);
+        batch.update(paymentRef, {
+            status: 'completed',
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpayOrderId: response.razorpay_order_id,
+            razorpaySignature: response.razorpay_signature,
+            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Update user data
+        const userRef = db.collection('users').doc(user.uid);
+        batch.update(userRef, {
+            coins: firebase.firestore.FieldValue.increment(coinsToAdd),
+            subscription: subscriptionType,
+            lastPayment: {
                 amount: amount,
                 description: description,
-                status: 'pending',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            
-            paymentRef.set(paymentData)
-                .then(() => {
-                    // For demo purposes, we'll simulate server-side order creation
-                    // In a real app, you would call your backend to create an order
-                    const orderId = `order_${Date.now()}`;
-                    
-                    const options = {
-                        key: razorpayKey,
-                        amount: amount * 100, // Razorpay expects amount in paise
-                        currency: 'INR',
-                        name: 'ExamPrep',
-                        description: description,
-                        image: 'https://via.placeholder.com/150',
-                        order_id: orderId, // This would come from your server in a real app
-                        handler: function(response) {
-                            handlePaymentSuccess(response, amount, description, paymentRef.id);
-                        },
-                        prefill: {
-                            name: auth.currentUser.displayName || '',
-                            email: auth.currentUser.email || ''
-                        },
-                        theme: {
-                            color: '#1a73e8'
-                        }
-                    };
-                    
-                    const rzp = new Razorpay(options);
-                    rzp.open();
-                    
-                    // For demo, we'll simulate payment success after 2 seconds
-                    // In a real app, this would be handled by Razorpay's callback
-                    setTimeout(() => {
-                        // This is just for demo - in real app, Razorpay would call the handler
-                        if (confirm('Simulate successful payment for demo?')) {
-                            handlePaymentSuccess({
-                                razorpay_payment_id: `pay_${Date.now()}`,
-                                razorpay_order_id: orderId,
-                                razorpay_signature: `sig_${Date.now()}`
-                            }, amount, description, paymentRef.id);
-                        }
-                    }, 2000);
-                })
-                .catch((error) => {
-                    showNotification('Failed to initiate payment: ' + error.message, 'error');
-                });
-        }
+                date: firebase.firestore.FieldValue.serverTimestamp(),
+                razorpayPaymentId: response.razorpay_payment_id
+            }
+        });
+        
+        await batch.commit();
+        
+        showNotification(`Payment successful! ${coinsToAdd} coins added to your account`, 'success');
+        updateUI(user);
+
+    } catch (error) {
+        console.error('Payment verification error:', error);
+        showNotification('Payment verification failed: ' + error.message, 'error');
+    }
+}
 
         function handlePaymentSuccess(response, amount, description, paymentId) {
             const user = auth.currentUser;
